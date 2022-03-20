@@ -1,22 +1,21 @@
-from pydantic import HttpUrl
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends
+from fastapi.responses import HTMLResponse
+from sqlalchemy.orm import Session
 
-from core.main import app
+from apps import crud
+from api.depends import get_db
 
-@app.get("/")
-def main(url: HttpUrl):
-    """
-    ## Performing page parsing at the given URL.
-    Query Parameters
-    ----------
-    * url: HttpUrl
-      #### example: https://www.timberland.com/shop/mens-boots
-    * width: Optional[int (10-100)] Width line (DEFAULT 60).
-    * image_url: Optional[bool] Display image url (DEFAULT False).
-    Returns
-    -------
-    .txtFile with extracted data.
-    """
 
-    path = get_content(url)
-    return FileResponse(path)
+router = APIRouter(tags=["public"])
+
+@router.get("/", response_class=HTMLResponse)
+def get_announcements(url):
+    dataframe = crud.get_dataframe(url)
+    response = (dataframe.style).to_html()
+    crud.create_announcements(dataframe)
+    return response
+
+@router.get("/announcements")
+def get_ann(db: Session = Depends(get_db)):
+    users = crud.get_announcements(db)
+    return users
