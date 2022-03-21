@@ -1,21 +1,27 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
-from sqlalchemy.orm import Session
+from pydantic import HttpUrl
 
 from apps import crud
-from api.depends import get_db
 
 
 router = APIRouter(tags=["public"])
 
 @router.get("/", response_class=HTMLResponse)
-def get_announcements(url):
+def get_announcements(url: HttpUrl):
+    """
+    ## Performing page parsing at the given URL.
+
+    Query Parameters
+    ----------
+    * url: HttpUrl
+      #### example: https://www.avito.ru/moskva/nedvizhimost
+
+    Returns
+    -------
+    html table with extracted data.
+    """
     dataframe = crud.get_dataframe(url)
     response = (dataframe.style).to_html()
     crud.create_announcements(dataframe)
     return response
-
-@router.get("/announcements")
-def get_ann(db: Session = Depends(get_db)):
-    users = crud.get_announcements(db)
-    return users

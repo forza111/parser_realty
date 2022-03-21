@@ -3,10 +3,8 @@ import re
 
 import requests
 from bs4 import BeautifulSoup as BS
-from sqlalchemy.orm import Session
 import pandas as pd
 
-from apps.models import Announcements
 from db import database
 
 
@@ -16,21 +14,54 @@ HEADERS = {
 }
 
 
-def get_soup(url):
+def get_soup(url: str) -> BS:
+    """
+    Execute a get request on the given URL and create a soup object
+
+    :param url: str
+    A get request is made at this URL
+
+    :return: BeautifulSoup object
+    """
     html = requests.get(url, headers=HEADERS).text
     soup = BS(html, "lxml")
     return soup
 
-def get_price_eur(price_rub, eur_value):
+def get_price_eur(price_rub: str, eur_value: str) -> float:
+    """
+    Get price in euro
+
+    :param price_rub: str
+    Price in rubles
+
+    :param eur_value: str
+    Cost 1 euro
+
+    :return: str
+    """
     return round((float(price_rub) / float(eur_value)), 2)
 
-def get_eur_value():
+def get_eur_value() -> [str, str]:
+    """
+    Obtaining the current euro exchange rate from the website of the Central Bank of Russia
+
+    :return: list[str, str]
+    Cost 1 euro, course date
+    """
     data = requests.get('https://www.cbr-xml-daily.ru/daily_json.js').json()
     eur_value = data["Valute"]["EUR"]["Value"]
     date_eur_value = data["Date"]
     return eur_value, date_eur_value
 
-def get_dataframe(url):
+def get_dataframe(url:str) -> pd.DataFrame:
+    """
+    Performing page parsing at the given URL and creating a Dataframe.
+
+    :param url: str
+    A get request is made at this URL
+
+    :return: Dataframe
+    """
     soup = get_soup(url)
     dataframe = pd.DataFrame()
     eur_value, date_eur_value = get_eur_value()
@@ -48,7 +79,6 @@ def get_dataframe(url):
             price_note = price_note[-1]
         else:
             price_note = None
-        # address = item.find("div", {"class": (re.search("geo-root-\w+", str(item))).group()}).span.span.string
         placement_date = item.find("span", {
             "class": (re.search("text-text-LurtD\s\w+-\w+-\w+-\w+\s\w+-\w+-\w+-\w+", str(item))).group()}).string
         photo_url = (item.find("div", {"class": (re.search("photo-slider-item-\w+", str(item))).group()})).img["src"]
@@ -69,10 +99,13 @@ def get_dataframe(url):
                                })], ignore_index=True)
     return dataframe
 
-def create_announcements(dataframe):
-    announcements = dataframe.to_sql('announcements', con=database.engine, if_exists='append', index=False)
-    return announcements
+def create_announcements(dataframe: pd.DataFrame) -> None:
+    """
+    Write dataframe to database.
 
-def get_announcements(db: Session):
-    announcements = db.query(Announcements).all()
+    :param dataframe: Dataframe
+
+    :return: None
+    """
+    announcements = dataframe.to_sql('announcements', con=database.engine, if_exists='append', index=False)
     return announcements
